@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   StyleSheet,
   Text,
@@ -8,10 +8,13 @@ import {
   Alert,
   ActivityIndicator,
   SafeAreaView,
+  Dimensions,
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
+import * as Location from "expo-location";
 import apiService from "../../services/apiService";
+import MapView, { Marker, PROVIDER_GOOGLE } from "react-native-maps";
 
 const TaskDetails = () => {
   const router = useRouter();
@@ -118,6 +121,11 @@ const TaskDetails = () => {
     return new Date(dateString).toLocaleDateString();
   };
 
+  // Parse coordinates for map
+  const latitude = parseFloat(milestoneLatitudinal);
+  const longitude = parseFloat(milestoneLongitudinal);
+  const hasValidCoordinates = !isNaN(latitude) && !isNaN(longitude);
+
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView style={styles.content}>
@@ -161,19 +169,42 @@ const TaskDetails = () => {
             </View>
           </View>
 
-          <TouchableOpacity
-            style={styles.milestoneButton}
-            onPress={handleViewMilestone}
-          >
-            <View style={styles.milestoneContent}>
-              <Ionicons name="location-outline" size={20} color="#0066CC" />
-              <View style={styles.milestoneTextContainer}>
-                <Text style={styles.milestoneLabel}>Milestone:</Text>
-                <Text style={styles.milestoneName}>{milestoneName}</Text>
-              </View>
+          <View style={styles.sectionTitle}>
+            <Ionicons name="location-outline" size={18} color="#666" />
+            <Text style={styles.sectionTitleText}>
+              Milestone Location: {milestoneName}
+            </Text>
+          </View>
+
+          {hasValidCoordinates ? (
+            <View style={styles.mapContainer}>
+              <MapView
+                style={styles.map}
+                initialRegion={{
+                  latitude: latitude,
+                  longitude: longitude,
+                  latitudeDelta: 0.005,
+                  longitudeDelta: 0.005,
+                }}
+                showsUserLocation={true}
+                showsMyLocationButton={true}
+                // provider={PROVIDER_GOOGLE}
+              >
+                <Marker
+                  coordinate={{ latitude, longitude }}
+                  title={milestoneName}
+                  description="Milestone location"
+                />
+              </MapView>
             </View>
-            <Ionicons name="chevron-forward" size={20} color="#0066CC" />
-          </TouchableOpacity>
+          ) : (
+            <View style={styles.invalidLocationContainer}>
+              <Ionicons name="warning-outline" size={24} color="#FF9500" />
+              <Text style={styles.invalidLocationText}>
+                Location coordinates not available
+              </Text>
+            </View>
+          )}
 
           <TouchableOpacity
             style={styles.deleteTaskButton}
@@ -334,6 +365,33 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
     fontSize: 12,
     fontWeight: "600",
+  },
+  mapContainer: {
+    borderRadius: 8,
+    overflow: "hidden",
+    marginVertical: 10,
+    height: 300, // Increased from 200 to 300
+    borderWidth: 1,
+    borderColor: "#D6E4FF",
+  },
+  map: {
+    width: "100%",
+    height: "100%",
+  },
+  invalidLocationContainer: {
+    backgroundColor: "#FFF9E6",
+    borderRadius: 8,
+    padding: 12,
+    marginVertical: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#FFE0A1",
+  },
+  invalidLocationText: {
+    fontSize: 14,
+    color: "#815800",
+    marginLeft: 8,
   },
   milestoneButton: {
     flexDirection: "row",
