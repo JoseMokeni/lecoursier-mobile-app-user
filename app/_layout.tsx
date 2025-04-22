@@ -30,6 +30,13 @@ export default function RootLayout() {
               title: "Le Coursier",
             }}
           />
+          <Stack.Screen
+            name="tasks/details"
+            options={{
+              title: "Task details",
+              headerShown: true,
+            }}
+          />
         </Stack>
       </AuthGuard>
     </AuthProvider>

@@ -1,8 +1,16 @@
-import React, { createContext, useState, useContext, useEffect } from "react";
+import React, {
+  createContext,
+  useState,
+  useContext,
+  useEffect,
+  useCallback,
+} from "react"; // Import useCallback
 import { Alert } from "react-native";
 import authService from "@/services/authService";
+import apiService from "@/services/apiService"; // Import apiService
 
 type User = {
+  id: string;
   username: string;
   name: string;
   email: string;
@@ -66,16 +74,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   };
 
-  // Logout function
-  const logout = async () => {
+  // Logout function - Wrap with useCallback
+  const logout = useCallback(async () => {
     try {
-      await authService.logout();
-      setUser(null);
+      await authService.logout(); // Clear storage
+      setUser(null); // Update context state <<< THIS IS KEY
     } catch (error) {
       console.error("Logout error:", error);
       Alert.alert("Logout failed", "An error occurred while logging out");
     }
-  };
+  }, []); // Empty dependency array means this function identity is stable
+
+  // Setup apiService with the context's logout function
+  useEffect(() => {
+    apiService.setup(logout);
+    // Optional cleanup if needed, but likely not necessary here
+    // return () => apiService.setup(async () => {}); // Clear handler on unmount?
+  }, [logout]); // Dependency array includes logout
 
   return (
     <AuthContext.Provider
