@@ -19,7 +19,7 @@ import MapView, { Marker, PROVIDER_GOOGLE } from "react-native-maps";
 const TaskDetails = () => {
   const router = useRouter();
   const params = useLocalSearchParams();
-  const [isStarting, setIsStarting] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
   // Parse the params
   const id = params.id as string;
@@ -36,17 +36,29 @@ const TaskDetails = () => {
   const milestoneLatitudinal = params.milestoneLatitudinal as string;
   const milestoneFavorite = params.milestoneFavorite;
   const milestoneCreatedAt = params.milestoneCreatedAt as string;
+  const completedAt = params.completedAt as string;
 
-  const handleStart = () => {
-    Alert.alert("Start Task", `Do you want to start the task: "${name}"?`, [
-      { text: "Cancel", style: "cancel" },
-      { text: "OK", onPress: () => confirmStart() },
-    ]);
+  const handleTaskAction = () => {
+    if (status === "in_progress") {
+      Alert.alert(
+        "Complete Task",
+        `Do you want to complete the task: "${name}"?`,
+        [
+          { text: "Cancel", style: "cancel" },
+          { text: "OK", onPress: () => completeTask() },
+        ]
+      );
+    } else {
+      Alert.alert("Start Task", `Do you want to start the task: "${name}"?`, [
+        { text: "Cancel", style: "cancel" },
+        { text: "OK", onPress: () => startTask() },
+      ]);
+    }
   };
 
-  const confirmStart = async () => {
+  const startTask = async () => {
     try {
-      setIsStarting(true);
+      setIsLoading(true);
       await apiService.post(`/tasks/${id}/start`);
       Alert.alert("Success", "Task started");
       router.back();
@@ -54,7 +66,21 @@ const TaskDetails = () => {
       console.error("Error starting task:", error);
       Alert.alert("Error", error.message || "Failed to start task");
     } finally {
-      setIsStarting(false);
+      setIsLoading(false);
+    }
+  };
+
+  const completeTask = async () => {
+    try {
+      setIsLoading(true);
+      await apiService.post(`/tasks/${id}/complete`);
+      Alert.alert("Success", "Task completed");
+      router.back();
+    } catch (error: any) {
+      console.error("Error completing task:", error);
+      Alert.alert("Error", error.message || "Failed to complete task");
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -96,6 +122,15 @@ const TaskDetails = () => {
   const formatDate = (dateString: string) => {
     if (!dateString) return "Not set";
     return new Date(dateString).toLocaleDateString();
+  };
+
+  const formatDateWithTime = (dateString: string) => {
+    if (!dateString) return "Not set";
+    const date = new Date(dateString);
+    return `${date.toLocaleDateString()} at ${date
+      .getHours()
+      .toString()
+      .padStart(2, "0")}:${date.getMinutes().toString().padStart(2, "0")}`;
   };
 
   // Parse coordinates for map
@@ -183,25 +218,46 @@ const TaskDetails = () => {
             </View>
           )}
 
-          <TouchableOpacity
-            style={styles.startTaskButton}
-            onPress={handleStart}
-          >
-            <View style={styles.startTaskContent}>
-              {isStarting ? (
-                <ActivityIndicator size="small" color="#FFF" />
-              ) : (
-                <Ionicons
-                  name="checkmark-circle-outline"
-                  size={20}
-                  color="#FFF"
-                />
-              )}
-              {!isStarting && (
-                <Text style={styles.startTaskButtonText}>Start Task</Text>
-              )}
+          {status === "completed" ? (
+            <View style={styles.completedInfoContainer}>
+              <Ionicons name="checkmark-circle" size={20} color="#34C759" />
+              <Text style={styles.completedInfoText}>
+                Completed on: {formatDateWithTime(completedAt)}
+              </Text>
             </View>
-          </TouchableOpacity>
+          ) : (
+            <TouchableOpacity
+              style={[
+                styles.actionButton,
+                {
+                  backgroundColor:
+                    status === "in_progress" ? "#34C759" : "#FF3B30",
+                },
+              ]}
+              onPress={handleTaskAction}
+            >
+              <View style={styles.actionButtonContent}>
+                {isLoading ? (
+                  <ActivityIndicator size="small" color="#FFF" />
+                ) : (
+                  <Ionicons
+                    name={
+                      status === "in_progress"
+                        ? "checkmark-circle-outline"
+                        : "play-circle-outline"
+                    }
+                    size={20}
+                    color="#FFF"
+                  />
+                )}
+                {!isLoading && (
+                  <Text style={styles.actionButtonText}>
+                    {status === "in_progress" ? "Complete Task" : "Start Task"}
+                  </Text>
+                )}
+              </View>
+            </TouchableOpacity>
+          )}
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -401,22 +457,37 @@ const styles = StyleSheet.create({
     fontWeight: "500",
     color: "#333",
   },
-  startTaskButton: {
-    backgroundColor: "#FF3B30", // Changed from #FF3B30 (red) to green
+  actionButton: {
     borderRadius: 8,
     padding: 12,
     alignItems: "center",
     marginTop: 16,
   },
-  startTaskContent: {
+  actionButtonContent: {
     flexDirection: "row",
     alignItems: "center",
   },
-  startTaskButtonText: {
+  actionButtonText: {
     color: "#FFFFFF",
     fontSize: 16,
     fontWeight: "600",
     marginLeft: 8,
+  },
+  completedInfoContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#F0FFF5",
+    borderRadius: 8,
+    padding: 12,
+    marginTop: 16,
+    borderWidth: 1,
+    borderColor: "#D0F0DB",
+  },
+  completedInfoText: {
+    marginLeft: 8,
+    fontSize: 15,
+    color: "#2E7D32",
+    fontWeight: "500",
   },
 });
 

@@ -56,6 +56,7 @@ const Tasks = () => {
             (a: Task, b: Task) =>
               new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
           );
+          console.log("Fetched tasks:", sorted);
           setTasks(sorted);
         } catch (err: any) {
           setError(err.message || "Failed to load tasks");
@@ -103,6 +104,7 @@ const Tasks = () => {
         priority: t.priority,
         status: t.status,
         dueDate: t.dueDate || "",
+        completedAt: t.completedAt || "",
         userId: t.userId.toString(),
         userName: t.user.username,
         milestoneId: t.milestoneId.toString(),
