@@ -106,7 +106,7 @@ const apiService = {
   // Helper methods for common HTTP methods
   get: (endpoint: string) => apiService.request(endpoint),
 
-  post: (endpoint: string, data: any) =>
+  post: (endpoint: string, data: any = {}) =>
     apiService.request(endpoint, {
       method: "POST",
       body: data,

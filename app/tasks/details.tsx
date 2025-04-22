@@ -19,7 +19,7 @@ import MapView, { Marker, PROVIDER_GOOGLE } from "react-native-maps";
 const TaskDetails = () => {
   const router = useRouter();
   const params = useLocalSearchParams();
-  const [isDeleting, setIsDeleting] = useState(false);
+  const [isStarting, setIsStarting] = useState(false);
 
   // Parse the params
   const id = params.id as string;
@@ -37,48 +37,25 @@ const TaskDetails = () => {
   const milestoneFavorite = params.milestoneFavorite;
   const milestoneCreatedAt = params.milestoneCreatedAt as string;
 
-  const handleDelete = () => {
-    Alert.alert("Delete Task", `Are you sure you want to delete "${name}"?`, [
+  const handleStart = () => {
+    Alert.alert("Start Task", `Do you want to start the task: "${name}"?`, [
       { text: "Cancel", style: "cancel" },
-      { text: "Delete", style: "destructive", onPress: confirmDelete },
+      { text: "OK", onPress: () => confirmStart() },
     ]);
   };
 
-  const confirmDelete = async () => {
+  const confirmStart = async () => {
     try {
-      setIsDeleting(true);
-      await apiService.delete(`/tasks/${id}`);
-      Alert.alert("Success", "Task deleted successfully");
+      setIsStarting(true);
+      await apiService.post(`/tasks/${id}/start`);
+      Alert.alert("Success", "Task started");
       router.back();
     } catch (error: any) {
-      console.error("Error deleting task:", error);
-      Alert.alert("Error", error.message || "Failed to delete task");
+      console.error("Error starting task:", error);
+      Alert.alert("Error", error.message || "Failed to start task");
     } finally {
-      setIsDeleting(false);
+      setIsStarting(false);
     }
-  };
-
-  const handleViewMilestone = () => {
-    console.log("View Milestone");
-    console.log({
-      id: milestoneId,
-      name: milestoneName,
-      lat: milestoneLatitudinal,
-      lng: milestoneLongitudinal,
-      favorite: milestoneFavorite,
-      createdAt: milestoneCreatedAt,
-    });
-    // router.push({
-    //   pathname: "/milestones/details",
-    //   params: {
-    //     id: milestoneId,
-    //     name: milestoneName,
-    //     lat: milestoneLatitudinal,
-    //     lng: milestoneLongitudinal,
-    //     favorite: milestoneFavorite,
-    //     createdAt: milestoneCreatedAt,
-    //   },
-    // });
   };
 
   const getStatusStyle = () => {
@@ -207,17 +184,21 @@ const TaskDetails = () => {
           )}
 
           <TouchableOpacity
-            style={styles.deleteTaskButton}
-            onPress={handleDelete}
+            style={styles.startTaskButton}
+            onPress={handleStart}
           >
-            <View style={styles.deleteTaskContent}>
-              {isDeleting ? (
+            <View style={styles.startTaskContent}>
+              {isStarting ? (
                 <ActivityIndicator size="small" color="#FFF" />
               ) : (
-                <Ionicons name="trash-outline" size={20} color="#FFF" />
+                <Ionicons
+                  name="checkmark-circle-outline"
+                  size={20}
+                  color="#FFF"
+                />
               )}
-              {!isDeleting && (
-                <Text style={styles.deleteTaskButtonText}>Delete Task</Text>
+              {!isStarting && (
+                <Text style={styles.startTaskButtonText}>Start Task</Text>
               )}
             </View>
           </TouchableOpacity>
@@ -420,18 +401,18 @@ const styles = StyleSheet.create({
     fontWeight: "500",
     color: "#333",
   },
-  deleteTaskButton: {
-    backgroundColor: "#FF3B30",
+  startTaskButton: {
+    backgroundColor: "#FF3B30", // Changed from #FF3B30 (red) to green
     borderRadius: 8,
     padding: 12,
     alignItems: "center",
     marginTop: 16,
   },
-  deleteTaskContent: {
+  startTaskContent: {
     flexDirection: "row",
     alignItems: "center",
   },
-  deleteTaskButtonText: {
+  startTaskButtonText: {
     color: "#FFFFFF",
     fontSize: 16,
     fontWeight: "600",
