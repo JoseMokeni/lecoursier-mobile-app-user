@@ -45,26 +45,48 @@ const Tasks = () => {
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
+  const [priorityFilter, setPriorityFilter] = useState("");
+  const [sortByDueDate, setSortByDueDate] = useState(false);
+
+  // Extract fetchTasks function so it can be reused
+  const fetchTasks = async () => {
+    try {
+      // Don't set loading to true on subsequent fetches to avoid UI flickering
+      if (tasks.length === 0) {
+        setLoading(true);
+      }
+      const response = await apiService.get("/tasks");
+      const sorted = (response.data || []).sort(
+        (a: Task, b: Task) =>
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      );
+      console.log("Fetched tasks:", sorted);
+      setTasks(sorted);
+      setError(null);
+    } catch (err: any) {
+      console.error("Error fetching tasks:", err);
+      setError(err.message || "Failed to load tasks");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useFocusEffect(
     useCallback(() => {
-      const fetchTasks = async () => {
-        try {
-          setLoading(true);
-          const response = await apiService.get("/tasks");
-          const sorted = (response.data || []).sort(
-            (a: Task, b: Task) =>
-              new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-          );
-          console.log("Fetched tasks:", sorted);
-          setTasks(sorted);
-        } catch (err: any) {
-          setError(err.message || "Failed to load tasks");
-        } finally {
-          setLoading(false);
-        }
-      };
+      // Initial fetch
       fetchTasks();
+
+      // Set up interval to fetch tasks every 15 seconds
+      const interval = setInterval(() => {
+        console.log("Auto-refreshing tasks...");
+        fetchTasks();
+      }, 15000); // 15 seconds
+
+      // Clean up interval when component is unfocused
+      return () => {
+        console.log("Cleaning up task refresh interval");
+        clearInterval(interval);
+      };
     }, [])
   );
 
@@ -116,6 +138,17 @@ const Tasks = () => {
       },
     });
 
+  const sortTasksByDueDate = (tasks: Task[]) => {
+    return [...tasks].sort((a, b) => {
+      // Put tasks with no due date at the bottom
+      if (!a.dueDate) return 1;
+      if (!b.dueDate) return -1;
+
+      // Sort by due date (ascending - closest due date first)
+      return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
+    });
+  };
+
   const filteredTasks = tasks
     .filter((t) => {
       const q = searchQuery.toLowerCase();
@@ -125,7 +158,17 @@ const Tasks = () => {
         t.user.username.toLowerCase().includes(q)
       );
     })
-    .filter((t) => !statusFilter || t.status === statusFilter);
+    .filter((t) => !statusFilter || t.status === statusFilter)
+    .filter(
+      (t) =>
+        !priorityFilter ||
+        t.priority.toLowerCase() === priorityFilter.toLowerCase()
+    );
+
+  // Apply sorting if needed
+  const sortedAndFilteredTasks = sortByDueDate
+    ? sortTasksByDueDate(filteredTasks)
+    : filteredTasks;
 
   const renderTaskItem = ({ item }: { item: Task }) => (
     <TouchableOpacity
@@ -202,6 +245,71 @@ const Tasks = () => {
         ))}
       </View>
 
+      {statusFilter === "pending" && (
+        <>
+          <View style={styles.filterSection}>
+            <Text style={styles.filterSectionTitle}>Filter by Priority:</Text>
+            <View style={styles.filterChipsContainer}>
+              {[
+                { label: "All", value: "" },
+                { label: "High", value: "high" },
+                { label: "Medium", value: "medium" },
+                { label: "Low", value: "low" },
+              ].map(({ label, value }) => (
+                <TouchableOpacity
+                  key={value || "all-priority"}
+                  style={[
+                    styles.chip,
+                    priorityFilter === value && styles.chipActive,
+                    value && {
+                      backgroundColor: value
+                        ? getPriorityColor(value) + "40"
+                        : undefined,
+                    },
+                    priorityFilter === value &&
+                      value && { backgroundColor: getPriorityColor(value) },
+                  ]}
+                  onPress={() => setPriorityFilter(value)}
+                >
+                  <Text
+                    style={[
+                      styles.chipText,
+                      priorityFilter === value && styles.chipTextActive,
+                    ]}
+                  >
+                    {label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+
+          <View style={styles.sortingContainer}>
+            <TouchableOpacity
+              style={[
+                styles.sortButton,
+                sortByDueDate && styles.sortButtonActive,
+              ]}
+              onPress={() => setSortByDueDate(!sortByDueDate)}
+            >
+              <Ionicons
+                name={sortByDueDate ? "calendar" : "calendar-outline"}
+                size={16}
+                color={sortByDueDate ? "#FFF" : "#666"}
+              />
+              <Text
+                style={[
+                  styles.sortButtonText,
+                  sortByDueDate && styles.sortButtonTextActive,
+                ]}
+              >
+                Sort by due date
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </>
+      )}
+
       {loading ? (
         <View style={styles.centerContent}>
           <ActivityIndicator size="large" color="#0066CC" />
@@ -211,24 +319,23 @@ const Tasks = () => {
         <View style={styles.centerContent}>
           <Ionicons name="alert-circle-outline" size={48} color="#FF3B30" />
           <Text style={styles.errorText}>{error}</Text>
-          <TouchableOpacity
-            style={styles.retryButton}
-            onPress={() => router.replace("/")}
-          >
+          <TouchableOpacity style={styles.retryButton} onPress={fetchTasks}>
             <Text style={styles.retryText}>Retry</Text>
           </TouchableOpacity>
         </View>
-      ) : filteredTasks.length === 0 ? (
+      ) : sortedAndFilteredTasks.length === 0 ? (
         <View style={styles.centerContent}>
           <Ionicons name="clipboard-outline" size={64} color="#CCC" />
           <Text style={styles.emptyText}>No tasks found</Text>
         </View>
       ) : (
         <FlatList
-          data={filteredTasks}
+          data={sortedAndFilteredTasks}
           renderItem={renderTaskItem}
           keyExtractor={(item) => item.id.toString()}
           contentContainerStyle={styles.listContainer}
+          refreshing={loading}
+          onRefresh={fetchTasks}
         />
       )}
     </View>
@@ -427,6 +534,39 @@ const styles = StyleSheet.create({
   },
   statusText: {
     fontSize: 14,
+    color: "#FFFFFF",
+  },
+  filterSection: {
+    marginBottom: 15,
+  },
+  filterSectionTitle: {
+    fontSize: 16,
+    fontWeight: "500",
+    color: "#333",
+    marginBottom: 8,
+  },
+  sortingContainer: {
+    flexDirection: "row",
+    marginBottom: 15,
+  },
+  sortButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#E0E0E0",
+    borderRadius: 20,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    marginRight: 10,
+  },
+  sortButtonActive: {
+    backgroundColor: "#0066CC",
+  },
+  sortButtonText: {
+    fontSize: 14,
+    color: "#333",
+    marginLeft: 4,
+  },
+  sortButtonTextActive: {
     color: "#FFFFFF",
   },
 });
