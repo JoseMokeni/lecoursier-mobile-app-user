@@ -1,5 +1,5 @@
 import { useFocusEffect, useRouter } from "expo-router";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   StyleSheet,
   Text,
@@ -12,6 +12,8 @@ import {
 import { useAuth } from "@/context/AuthContext";
 import { Ionicons } from "@expo/vector-icons";
 import apiService from "@/services/apiService";
+import Echo from "laravel-echo";
+import Pusher from "pusher-js/react-native";
 
 interface Task {
   id: number;
@@ -71,22 +73,75 @@ const Tasks = () => {
     }
   };
 
+  useEffect(() => {
+    // log all the env vars used bellow with types
+
+    console.log("Pusher App Key:", process.env.EXPO_PUBLIC_PUSHER_APP_KEY);
+    console.log("Pusher Host:", process.env.EXPO_PUBLIC_PUSHER_HOST);
+    console.log("Pusher Port:", process.env.EXPO_PUBLIC_PUSHER_PORT);
+    console.log("Pusher Cluster:", process.env.EXPO_PUBLIC_PUSHER_CLUSTER);
+    console.log("Pusher Encrypted:", process.env.EXPO_PUBLIC_PUSHER_ENCRYPTED);
+    const pusher = new Pusher(
+      process.env.EXPO_PUBLIC_PUSHER_APP_KEY || "lecoursier",
+      {
+        wsHost: process.env.EXPO_PUBLIC_PUSHER_HOST || "10.0.2.2",
+        wsPort: parseInt(process.env.EXPO_PUBLIC_PUSHER_PORT || "6001", 10),
+        wssPort: parseInt(process.env.EXPO_PUBLIC_PUSHER_PORT || "6001", 10),
+        forceTLS: false,
+        disableStats: true,
+        enabledTransports: ["ws"],
+        cluster: process.env.EXPO_PUBLIC_PUSHER_CLUSTER || "mt1",
+      }
+    );
+
+    const channel = pusher.subscribe("tasks");
+    channel.bind("App\\Events\\TaskCreated", function (data) {
+      // update the tasks list
+      console.log("Task created event received:", data);
+      const newTask = data.task;
+      console.log("New task data:", newTask);
+      setTasks((prevTasks) => {
+        const updatedTasks = [...prevTasks, newTask];
+        return updatedTasks.sort(
+          (a, b) =>
+            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        );
+      });
+    });
+
+    channel.bind("App\\Events\\TaskDeleted", function (data) {
+      // update the tasks list
+      console.log("Task deleted event received:", data);
+      const deletedTaskId = data.taskId;
+      setTasks((prevTasks) =>
+        prevTasks.filter((task) => task.id !== deletedTaskId)
+      );
+    });
+
+    return () => {
+      console.log("Cleaning up Pusher channel");
+      channel.unbind_all();
+      pusher.unsubscribe("tasks");
+      pusher.disconnect();
+    };
+  }, []);
+
   useFocusEffect(
     useCallback(() => {
       // Initial fetch
       fetchTasks();
 
       // Set up interval to fetch tasks every 15 seconds
-      const interval = setInterval(() => {
-        console.log("Auto-refreshing tasks...");
-        fetchTasks();
-      }, 15000); // 15 seconds
+      // const interval = setInterval(() => {
+      //   console.log("Auto-refreshing tasks...");
+      //   fetchTasks();
+      // }, 15000); // 15 seconds
 
-      // Clean up interval when component is unfocused
-      return () => {
-        console.log("Cleaning up task refresh interval");
-        clearInterval(interval);
-      };
+      // // Clean up interval when component is unfocused
+      // return () => {
+      //   console.log("Cleaning up task refresh interval");
+      //   clearInterval(interval);
+      // };
     }, [])
   );
 
