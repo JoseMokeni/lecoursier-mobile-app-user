@@ -48,6 +48,16 @@ const apiService = {
         body: options.body ? JSON.stringify(options.body) : undefined,
       });
 
+      // Handle 403 error by triggering logout
+      if (response.status === 403) {
+        if (contextLogoutHandler) {
+          await contextLogoutHandler(); // Use context's logout to update state
+        } else {
+          await authService.logout(); // Fallback
+        }
+        throw new Error("Access denied. Please log in again.");
+      }
+
       // Handle 401 errors (unauthorized) by triggering logout
       if (response.status === 401) {
         if (contextLogoutHandler) {
