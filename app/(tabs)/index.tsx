@@ -1,5 +1,5 @@
 import { useFocusEffect, useRouter } from "expo-router";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   StyleSheet,
   Text,
@@ -14,6 +14,8 @@ import { Ionicons } from "@expo/vector-icons";
 import apiService from "@/services/apiService";
 import Echo from "laravel-echo";
 import Pusher from "pusher-js/react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import authService from "@/services/authService";
 
 interface Task {
   id: number;
@@ -40,7 +42,7 @@ interface Task {
 }
 
 const Tasks = () => {
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const router = useRouter();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
@@ -49,6 +51,7 @@ const Tasks = () => {
   const [statusFilter, setStatusFilter] = useState("");
   const [priorityFilter, setPriorityFilter] = useState("");
   const [sortByDueDate, setSortByDueDate] = useState(false);
+  const pusherRef = useRef<Pusher | null>(null);
 
   // Extract fetchTasks function so it can be reused
   const fetchTasks = async () => {
@@ -74,55 +77,72 @@ const Tasks = () => {
   };
 
   useEffect(() => {
-    // log all the env vars used bellow with types
+    let channel: any = null;
+    let isMounted = true;
 
-    console.log("Pusher App Key:", process.env.EXPO_PUBLIC_PUSHER_APP_KEY);
-    console.log("Pusher Host:", process.env.EXPO_PUBLIC_PUSHER_HOST);
-    console.log("Pusher Port:", process.env.EXPO_PUBLIC_PUSHER_PORT);
-    console.log("Pusher Cluster:", process.env.EXPO_PUBLIC_PUSHER_CLUSTER);
-    console.log("Pusher Encrypted:", process.env.EXPO_PUBLIC_PUSHER_ENCRYPTED);
-    const pusher = new Pusher(
-      process.env.EXPO_PUBLIC_PUSHER_APP_KEY || "lecoursier",
-      {
-        wsHost: process.env.EXPO_PUBLIC_PUSHER_HOST || "10.0.2.2",
-        wsPort: parseInt(process.env.EXPO_PUBLIC_PUSHER_PORT || "6001", 10),
-        wssPort: parseInt(process.env.EXPO_PUBLIC_PUSHER_PORT || "6001", 10),
-        forceTLS: false,
-        disableStats: true,
-        enabledTransports: ["ws"],
-        cluster: process.env.EXPO_PUBLIC_PUSHER_CLUSTER || "mt1",
-      }
-    );
+    const setupPusher = async () => {
+      const COMPANY_CODE = await authService.getCompanyCode();
+      const username = user?.username || "";
+      // log all the env vars used bellow with types
+      console.log("Pusher App Key:", process.env.EXPO_PUBLIC_PUSHER_APP_KEY);
+      console.log("Pusher Host:", process.env.EXPO_PUBLIC_PUSHER_HOST);
+      console.log("Pusher Port:", process.env.EXPO_PUBLIC_PUSHER_PORT);
+      console.log("Pusher Cluster:", process.env.EXPO_PUBLIC_PUSHER_CLUSTER);
+      console.log("Company Code:", COMPANY_CODE);
+      console.log("Username:", username);
+      const pusher = new Pusher(
+        process.env.EXPO_PUBLIC_PUSHER_APP_KEY || "lecoursier",
+        {
+          wsHost: process.env.EXPO_PUBLIC_PUSHER_HOST || "10.0.2.2",
+          wsPort: parseInt(process.env.EXPO_PUBLIC_PUSHER_PORT || "6001", 10),
+          wssPort: parseInt(process.env.EXPO_PUBLIC_PUSHER_PORT || "6001", 10),
+          forceTLS: false,
+          disableStats: true,
+          enabledTransports: ["ws"],
+          cluster: process.env.EXPO_PUBLIC_PUSHER_CLUSTER || "mt1",
+        }
+      );
+      pusherRef.current = pusher;
 
-    const channel = pusher.subscribe("tasks");
-    channel.bind("App\\Events\\TaskCreated", function (data) {
-      // update the tasks list
-      console.log("Task created event received:", data);
-      const newTask = data.task;
-      console.log("New task data:", newTask);
-      setTasks((prevTasks) => {
-        const updatedTasks = [...prevTasks, newTask];
-        return updatedTasks.sort(
-          (a, b) =>
-            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      channel = pusher.subscribe(`tasks.${COMPANY_CODE}.${username}`);
+      channel.bind("App\\Events\\TaskCreated", function (data: any) {
+        // update the tasks list
+        console.log("Task created event received:", data);
+        if (!isMounted) return;
+        const newTask = data.task;
+        console.log("New task data:", newTask);
+        setTasks((prevTasks) => {
+          const updatedTasks = [...prevTasks, newTask];
+          return updatedTasks.sort(
+            (a, b) =>
+              new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+          );
+        });
+      });
+
+      channel.bind("App\\Events\\TaskDeleted", function (data: any) {
+        // update the tasks list
+        console.log("Task deleted event received:", data);
+        if (!isMounted) return;
+        const deletedTaskId = data.taskId;
+        setTasks((prevTasks) =>
+          prevTasks.filter((task) => task.id !== deletedTaskId)
         );
       });
-    });
+    };
 
-    channel.bind("App\\Events\\TaskDeleted", function (data) {
-      // update the tasks list
-      console.log("Task deleted event received:", data);
-      const deletedTaskId = data.taskId;
-      setTasks((prevTasks) =>
-        prevTasks.filter((task) => task.id !== deletedTaskId)
-      );
-    });
+    setupPusher();
 
     return () => {
-      console.log("Cleaning up Pusher channel");
-      channel.unbind_all();
-      pusher.unsubscribe("tasks");
-      pusher.disconnect();
+      isMounted = false;
+      if (channel) {
+        channel.unbind_all();
+        channel.unsubscribe();
+      }
+      if (pusherRef.current) {
+        pusherRef.current.disconnect();
+        pusherRef.current = null;
+      }
     };
   }, []);
 
