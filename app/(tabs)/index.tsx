@@ -77,6 +77,8 @@ const Tasks = () => {
   };
 
   useEffect(() => {
+    fetchTasks();
+
     let channel: any = null;
     let isMounted = true;
 
@@ -129,11 +131,25 @@ const Tasks = () => {
           prevTasks.filter((task) => task.id !== deletedTaskId)
         );
       });
+
+      channel.bind("App\\Events\\TaskUpdated", function (data: any) {
+        // update the tasks list
+        console.log("Task updated event received:", data);
+        if (!isMounted) return;
+        const updatedTask = data.task;
+        setTasks((prevTasks) =>
+          prevTasks.map((task) =>
+            task.id === updatedTask.id ? updatedTask : task
+          )
+        );
+      });
     };
 
     setupPusher();
 
     return () => {
+      console.log("Cleaning up Pusher and Echo");
+
       isMounted = false;
       if (channel) {
         channel.unbind_all();
@@ -148,15 +164,11 @@ const Tasks = () => {
 
   useFocusEffect(
     useCallback(() => {
-      // Initial fetch
-      fetchTasks();
-
       // Set up interval to fetch tasks every 15 seconds
       // const interval = setInterval(() => {
       //   console.log("Auto-refreshing tasks...");
       //   fetchTasks();
       // }, 15000); // 15 seconds
-
       // // Clean up interval when component is unfocused
       // return () => {
       //   console.log("Cleaning up task refresh interval");
