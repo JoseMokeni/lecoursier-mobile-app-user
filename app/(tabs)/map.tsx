@@ -309,6 +309,7 @@ const Map = () => {
         style={styles.map}
         initialRegion={defaultRegion}
         showsUserLocation={true}
+        showsMyLocationButton={true}
       >
         {/* User location marker (optional, since showsUserLocation is true) */}
         {userLocation && (
@@ -333,12 +334,12 @@ const Map = () => {
               description={task.milestone.name}
               pinColor={getMarkerColor(task.status)}
               tracksViewChanges={selectedTaskId === task.id}
-              onPress={() => {
-                setSelectedTaskId(task.id);
-                setSelectedTask(task);
-              }}
+              // onPress={() => {
+              //   setSelectedTaskId(task.id);
+              //   setSelectedTask(task);
+              // }}
             >
-              {selectedTaskId === task.id && selectedTask && (
+              {/* {selectedTaskId === task.id && selectedTask && (
                 <Callout onPress={() => {}}>
                   <View style={styles.calloutContainer}>
                     <Text style={styles.calloutTitle}>{selectedTask.name}</Text>
@@ -379,7 +380,7 @@ const Map = () => {
                     </Text>
                   </View>
                 </Callout>
-              )}
+              )} */}
             </Marker>
           ))}
       </MapView>
