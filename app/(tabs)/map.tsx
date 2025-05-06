@@ -73,6 +73,8 @@ const Map = () => {
   const [userLocation, setUserLocation] = useState<{
     latitude: number;
     longitude: number;
+    latitudeDelta: number;
+    longitudeDelta: number;
   } | null>(null);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const router = useRouter();
@@ -329,6 +331,8 @@ const Map = () => {
       setUserLocation({
         latitude: location.coords.latitude,
         longitude: location.coords.longitude,
+        latitudeDelta: 0.01,
+        longitudeDelta: 0.01,
       });
     })();
   }, []);
@@ -338,18 +342,10 @@ const Map = () => {
       <MapView
         ref={mapRef}
         style={styles.map}
-        initialRegion={defaultRegion}
+        initialRegion={userLocation || undefined}
         showsUserLocation={true}
         showsMyLocationButton={true}
       >
-        {/* User location marker (optional, since showsUserLocation is true) */}
-        {userLocation && (
-          <Marker
-            coordinate={userLocation}
-            title="My Location"
-            pinColor="#34C759"
-          />
-        )}
         {tasks
           .filter(
             (task) => task.status === "in_progress" || task.status === "pending"
@@ -364,55 +360,7 @@ const Map = () => {
               title={task.name}
               description={task.milestone.name}
               pinColor={getMarkerColor(task.status)}
-              tracksViewChanges={selectedTaskId === task.id}
-              // onPress={() => {
-              //   setSelectedTaskId(task.id);
-              //   setSelectedTask(task);
-              // }}
-            >
-              {/* {selectedTaskId === task.id && selectedTask && (
-                <Callout onPress={() => {}}>
-                  <View style={styles.calloutContainer}>
-                    <Text style={styles.calloutTitle}>{selectedTask.name}</Text>
-                    <Text style={styles.calloutMilestone}>
-                      {selectedTask.milestone.name}
-                    </Text>
-                    <Text
-                      style={[
-                        styles.calloutPriority,
-                        { color: getPriorityColor(selectedTask.priority) },
-                      ]}
-                    >
-                      Priority: {selectedTask.priority}
-                    </Text>
-                    <Text
-                      style={[
-                        styles.calloutStatus,
-                        selectedTask.status === "pending"
-                          ? styles.statusPending
-                          : styles.statusInProgress,
-                      ]}
-                    >
-                      {selectedTask.status === "pending"
-                        ? "Pending"
-                        : "In Progress"}
-                    </Text>
-                    <Text style={styles.calloutDescription}>
-                      {selectedTask.description}
-                    </Text>
-                    <Text style={styles.calloutDueDate}>
-                      Due:{" "}
-                      {selectedTask.dueDate
-                        ? new Date(selectedTask.dueDate).toLocaleDateString()
-                        : "Not set"}
-                    </Text>
-                    <Text style={styles.calloutAssigned}>
-                      Assigned to: {selectedTask.user.username}
-                    </Text>
-                  </View>
-                </Callout>
-              )} */}
-            </Marker>
+            />
           ))}
       </MapView>
       {/* Superposed list of in-progress and pending tasks */}
