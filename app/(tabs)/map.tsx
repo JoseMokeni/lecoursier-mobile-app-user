@@ -69,6 +69,7 @@ const Map = () => {
   const mapRef = useRef<MapView | null>(null);
   const [selectedTaskId, setSelectedTaskId] = useState<number | null>(null);
   const [startingTaskId, setStartingTaskId] = useState<number | null>(null);
+  const [completingTaskId, setCompletingTaskId] = useState<number | null>(null);
   const [userLocation, setUserLocation] = useState<{
     latitude: number;
     longitude: number;
@@ -244,6 +245,36 @@ const Map = () => {
               Alert.alert("Error", error.message || "Failed to start task");
             } finally {
               setStartingTaskId(null);
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  // Complete a task in progress
+  const completeTask = async (task: Task) => {
+    Alert.alert(
+      "Complete Task",
+      `Do you want to complete the task: "${task.name}"?`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "OK",
+          onPress: async () => {
+            try {
+              setCompletingTaskId(task.id);
+              await apiService.post(`/tasks/${task.id}/complete`);
+              // Optimistically update the task status
+              setTasks((prev) =>
+                prev.map((t) =>
+                  t.id === task.id ? { ...t, status: "completed" } : t
+                )
+              );
+            } catch (error: any) {
+              Alert.alert("Error", error.message || "Failed to complete task");
+            } finally {
+              setCompletingTaskId(null);
             }
           },
         },
@@ -443,6 +474,21 @@ const Map = () => {
                     )}
                   </TouchableOpacity>
                 )}
+                {task.status === "in_progress" && (
+                  <TouchableOpacity
+                    style={styles.completeButton}
+                    onPress={() => completeTask(task)}
+                    disabled={completingTaskId === task.id}
+                  >
+                    {completingTaskId === task.id ? (
+                      <ActivityIndicator color="#fff" size="small" />
+                    ) : (
+                      <Text style={styles.completeButtonText}>
+                        Complete Task
+                      </Text>
+                    )}
+                  </TouchableOpacity>
+                )}
               </View>
             ))}
           </ScrollView>
@@ -564,6 +610,19 @@ const styles = StyleSheet.create({
     alignSelf: "flex-start",
   },
   startButtonText: {
+    color: "#fff",
+    fontWeight: "bold",
+    fontSize: 14,
+  },
+  completeButton: {
+    marginTop: 8,
+    backgroundColor: "#34C759", // green color for completion
+    borderRadius: 8,
+    paddingVertical: 6,
+    paddingHorizontal: 16,
+    alignSelf: "flex-start",
+  },
+  completeButtonText: {
     color: "#fff",
     fontWeight: "bold",
     fontSize: 14,
