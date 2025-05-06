@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React from "react";
 import {
   StyleSheet,
   Text,
@@ -7,33 +7,14 @@ import {
   Alert,
   ActivityIndicator,
   SafeAreaView,
-  Animated,
   Dimensions,
   StatusBar,
 } from "react-native";
 import { FontAwesome, Ionicons } from "@expo/vector-icons";
 import { useAuth } from "@/context/AuthContext";
-import { LinearGradient } from "expo-linear-gradient";
 
 const ProfileScreen = () => {
   const { user, logout, isLoading } = useAuth();
-  const fadeAnim = new Animated.Value(0);
-  const slideAnim = new Animated.Value(50);
-
-  useEffect(() => {
-    Animated.parallel([
-      Animated.timing(fadeAnim, {
-        toValue: 1,
-        duration: 800,
-        useNativeDriver: true,
-      }),
-      Animated.timing(slideAnim, {
-        toValue: 0,
-        duration: 600,
-        useNativeDriver: true,
-      }),
-    ]).start();
-  }, []);
 
   const handleLogout = async () => {
     Alert.alert("Logout", "Are you sure you want to logout?", [
@@ -44,7 +25,6 @@ const ProfileScreen = () => {
         onPress: async () => {
           try {
             await logout();
-            // Navigation will be handled by AuthGuard
           } catch (error) {
             console.error("Logout error:", error);
             Alert.alert(
@@ -69,48 +49,29 @@ const ProfileScreen = () => {
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#F5F8FA" />
 
-      <Animated.View
-        style={[
-          styles.profileContainer,
-          { opacity: fadeAnim, transform: [{ translateY: slideAnim }] },
-        ]}
-      >
-        <Text style={styles.headerTitle}>My Profile</Text>
+      <View style={styles.bgAccent} />
 
+      <View style={styles.profileCard}>
         <View style={styles.avatarContainer}>
-          <LinearGradient colors={["#0088FF", "#0066CC"]} style={styles.avatar}>
-            <FontAwesome name="user" size={60} color="#FFFFFF" />
-          </LinearGradient>
-          {user?.role && (
-            <View style={styles.roleBadge}>
-              <Text style={styles.roleText}>{user.role}</Text>
+          <View style={styles.avatarBorder}>
+            <View style={styles.avatar}>
+              <FontAwesome name="user" size={48} color="#4A90E2" />
             </View>
-          )}
+          </View>
+          {user?.role && <Text style={styles.roleText}>{user.role}</Text>}
         </View>
 
-        <View style={styles.userInfoContainer}>
-          <Text style={styles.userName}>{user?.name || "User"}</Text>
-          <View style={styles.userDetailRow}>
-            <Ionicons name="person-outline" size={18} color="#666666" />
-            <Text style={styles.userDetails}>
-              @{user?.username || "username"}
-            </Text>
-          </View>
-          <View style={styles.userDetailRow}>
-            <Ionicons name="mail-outline" size={18} color="#666666" />
-            <Text style={styles.userDetails}>
-              {user?.email || "email@example.com"}
-            </Text>
-          </View>
-        </View>
-
-        <View style={styles.divider} />
+        <Text style={styles.userName}>{user?.name || "User"}</Text>
+        <Text style={styles.userDetails}>@{user?.username || "username"}</Text>
+        <Text style={styles.userDetails}>
+          {user?.email || "email@example.com"}
+        </Text>
 
         <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-          <Ionicons name="log-out-outline" size={20} color="#FFFFFF" />
+          <Ionicons name="log-out-outline" size={18} color="#4A90E2" />
           <Text style={styles.logoutText}>Logout</Text>
         </TouchableOpacity>
-      </Animated.View>
+      </View>
 
       <View style={styles.footer}>
         <Text style={styles.footerText}>Le Coursier App v1.0.0</Text>
@@ -125,128 +86,109 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#F5F8FA",
-    paddingTop: 10,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  bgAccent: {
+    position: "absolute",
+    top: -80,
+    left: -80,
+    width: width * 1.2,
+    height: width * 1.2,
+    backgroundColor: "#E3F0FF",
+    borderRadius: width,
+    zIndex: 0,
+  },
+  profileCard: {
+    width: width * 0.9,
+    backgroundColor: "#fff",
+    borderRadius: 24,
+    alignItems: "center",
+    paddingVertical: 36,
+    paddingHorizontal: 20,
+    marginTop: 40,
+    marginBottom: 24,
+    shadowColor: "#4A90E2",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.08,
+    shadowRadius: 16,
+    elevation: 8,
+    zIndex: 1,
+  },
+  avatarContainer: {
+    alignItems: "center",
+    marginBottom: 18,
+  },
+  avatarBorder: {
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    borderWidth: 3,
+    borderColor: "#B3D4FC",
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#F5F8FA",
+  },
+  avatar: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: "#E3F0FF",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  roleText: {
+    color: "#4A90E2",
+    fontWeight: "600",
+    fontSize: 13,
+    textTransform: "uppercase",
+    marginTop: 10,
+    letterSpacing: 0.5,
+  },
+  userName: {
+    fontSize: 22,
+    fontWeight: "700",
+    color: "#222",
+    marginBottom: 6,
+    marginTop: 6,
+    textAlign: "center",
+  },
+  userDetails: {
+    fontSize: 15,
+    color: "#6A7A90",
+    marginBottom: 2,
+    textAlign: "center",
+  },
+  logoutButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderWidth: 1.5,
+    borderColor: "#4A90E2",
+    borderRadius: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 32,
+    marginTop: 28,
+    backgroundColor: "#fff",
+  },
+  logoutText: {
+    color: "#4A90E2",
+    fontWeight: "600",
+    fontSize: 15,
+    marginLeft: 8,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
   },
-  headerTitle: {
-    fontSize: 24,
-    fontWeight: "bold",
-    color: "#333333",
-    marginVertical: 20,
-    textAlign: "center",
-  },
-  profileContainer: {
-    flex: 1,
-    backgroundColor: "#FFFFFF",
-    paddingHorizontal: 20,
-    alignItems: "center",
-    marginVertical: 10,
-    marginHorizontal: 16,
-    borderRadius: 20,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 5,
-    paddingTop: 5,
-  },
-  avatarContainer: {
-    marginTop: 10,
-    marginBottom: 20,
-    position: "relative",
-  },
-  avatar: {
-    width: 130,
-    height: 130,
-    borderRadius: 65,
-    justifyContent: "center",
-    alignItems: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 5,
-    elevation: 10,
-  },
-  roleBadge: {
-    position: "absolute",
-    bottom: 5,
-    right: 5,
-    backgroundColor: "#4CAF50",
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    borderRadius: 12,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 3,
-    elevation: 3,
-  },
-  roleText: {
-    color: "white",
-    fontWeight: "600",
-    fontSize: 12,
-    textTransform: "uppercase",
-  },
-  userInfoContainer: {
-    alignItems: "center",
-    marginBottom: 30,
-    width: "100%",
-  },
-  userName: {
-    fontSize: 28,
-    fontWeight: "bold",
-    color: "#333333",
-    marginBottom: 15,
-  },
-  userDetailRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 10,
-  },
-  userDetails: {
-    fontSize: 16,
-    color: "#666666",
-    marginLeft: 8,
-  },
-  divider: {
-    height: 1,
-    backgroundColor: "#EEEEEE",
-    width: "100%",
-    marginBottom: 20,
-  },
-  logoutButton: {
-    flexDirection: "row",
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "#FF3B30",
-    paddingVertical: 14,
-    paddingHorizontal: 40,
-    borderRadius: 10,
-    marginTop: 20,
-    shadowColor: "#FF3B30",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 5,
-    elevation: 3,
-    width: width * 0.7,
-  },
-  logoutText: {
-    color: "#FFFFFF",
-    fontWeight: "bold",
-    fontSize: 16,
-    marginLeft: 8,
-  },
   footer: {
     alignItems: "center",
-    padding: 20,
+    padding: 18,
+    zIndex: 2,
   },
   footerText: {
-    color: "#999999",
-    fontSize: 14,
+    color: "#bbb",
+    fontSize: 13,
   },
 });
 
