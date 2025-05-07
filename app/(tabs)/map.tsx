@@ -16,6 +16,7 @@ import authService from "@/services/authService";
 import { useAuth } from "@/context/AuthContext";
 import MapView, { Marker, Callout, Region } from "react-native-maps";
 import * as Location from "expo-location";
+import { PROVIDER_GOOGLE } from "react-native-maps";
 
 interface Task {
   id: number;
@@ -82,6 +83,7 @@ const Map = () => {
     null
   );
   const [lastPressTime, setLastPressTime] = useState<number>(0);
+  const [showTaskList, setShowTaskList] = useState(true);
 
   const fetchTasks = async () => {
     try {
@@ -345,6 +347,7 @@ const Map = () => {
         initialRegion={userLocation || undefined}
         showsUserLocation={true}
         showsMyLocationButton={true}
+        provider={PROVIDER_GOOGLE}
       >
         {tasks
           .filter(
@@ -364,9 +367,19 @@ const Map = () => {
           ))}
       </MapView>
       {/* Superposed list of in-progress and pending tasks */}
-      {visibleTasks.length > 0 && (
+      {showTaskList && visibleTasks.length > 0 && (
         <View style={styles.taskListOverlay}>
           <View style={styles.blurBackground} />
+          {/* Toggle Button at the top of the list */}
+          <TouchableOpacity
+            style={styles.toggleButton}
+            onPress={() => setShowTaskList((prev) => !prev)}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.toggleButtonText}>
+              {showTaskList ? "Hide List" : "Show List"}
+            </Text>
+          </TouchableOpacity>
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
             {visibleTasks.map((task) => (
               <View
@@ -442,11 +455,33 @@ const Map = () => {
           </ScrollView>
         </View>
       )}
-      {visibleTasks.length === 0 && (
+      {showTaskList && visibleTasks.length === 0 && (
         <View style={styles.noTasksOverlay}>
+          {/* Toggle Button at the top of the empty list */}
+          <TouchableOpacity
+            style={styles.toggleButton}
+            onPress={() => setShowTaskList((prev) => !prev)}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.toggleButtonText}>
+              {showTaskList ? "Hide List" : "Show Tasks"}
+            </Text>
+          </TouchableOpacity>
           <Text style={styles.noTasksText}>
             No pending or in-progress tasks to display
           </Text>
+        </View>
+      )}
+      {/* Show the toggle button alone if the list is hidden */}
+      {!showTaskList && (
+        <View style={styles.toggleButtonOverlay}>
+          <TouchableOpacity
+            style={styles.toggleButton}
+            onPress={() => setShowTaskList(true)}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.toggleButtonText}>Show Tasks</Text>
+          </TouchableOpacity>
         </View>
       )}
     </View>
@@ -468,6 +503,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     alignItems: "center",
+    paddingTop: 8, // add space for the button
   },
   noTasksText: {
     fontSize: 18,
@@ -478,13 +514,14 @@ const styles = StyleSheet.create({
   },
   taskListOverlay: {
     position: "absolute",
-    bottom: 30,
+    bottom: 40,
     left: 0,
     right: 0,
     paddingHorizontal: 10,
     minHeight: 110,
-    justifyContent: "center",
+    justifyContent: "flex-start",
     alignItems: "center",
+    paddingTop: 8, // add space for the button
   },
   blurBackground: {
     position: "absolute",
@@ -621,6 +658,33 @@ const styles = StyleSheet.create({
   },
   statusInProgress: {
     color: "#FF9500",
+  },
+  toggleButton: {
+    alignSelf: "center",
+    marginBottom: 6,
+    backgroundColor: "#007AFF",
+    borderRadius: 20,
+    paddingVertical: 8,
+    paddingHorizontal: 18,
+    zIndex: 10,
+    elevation: 6,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.18,
+    shadowRadius: 4,
+  },
+  toggleButtonText: {
+    color: "#fff",
+    fontWeight: "bold",
+    fontSize: 15,
+  },
+  toggleButtonOverlay: {
+    position: "absolute",
+    bottom: 40,
+    left: 0,
+    right: 0,
+    alignItems: "center",
+    zIndex: 20,
   },
 });
 

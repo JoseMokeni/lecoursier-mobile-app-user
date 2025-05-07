@@ -10,7 +10,10 @@
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.anonymous.lecoursiermobileappuser"
+      "bundleIdentifier": "com.anonymous.lecoursiermobileappuser",
+      "config": {
+        "googleMapsApiKey": ""
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -20,7 +23,7 @@
       "package": "com.anonymous.lecoursiermobileappuser",
       "config": {
         "googleMaps": {
-          "apiKey": "process.env.GOOGLE_MAPS_API_KEY"
+          "apiKey": ""
         }
       }
     },
