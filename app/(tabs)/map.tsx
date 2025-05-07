@@ -9,6 +9,7 @@ import {
   Alert,
   Linking,
   Platform,
+  ActionSheetIOS,
 } from "react-native";
 import { useFocusEffect, useRouter } from "expo-router";
 import apiService from "@/services/apiService";
@@ -65,17 +66,35 @@ const getPriorityColor = (priority: string) => {
 };
 
 // Custom openDirections function using platform-specific map schemes
-const openDirections = (lat: string, lng: string, label: string) => {
+const openDirections = (
+  lat: string,
+  lng: string,
+  label: string,
+  provider: "apple" | "google" = "apple"
+) => {
   const latitude = parseFloat(lat);
   const longitude = parseFloat(lng);
   const encodedLabel = encodeURIComponent(label);
-  const scheme = Platform.select({ ios: "maps:0,0?q=", android: "geo:0,0?q=" });
-  const latLng = `${latitude},${longitude}`;
-  const url = Platform.select({
-    ios: `${scheme}${encodedLabel}@${latLng}`,
-    android: `${scheme}${latLng}(${encodedLabel})`,
-  });
-  if (url) {
+
+  if (Platform.OS === "ios") {
+    if (provider === "google") {
+      const url = `comgooglemaps://?daddr=${latitude},${longitude}&q=${encodedLabel}&directionsmode=driving`;
+      Linking.canOpenURL(url).then((supported) => {
+        if (supported) {
+          Linking.openURL(url);
+        } else {
+          // Fallback to browser if app not installed
+          const browserUrl = `https://maps.google.com/?daddr=${latitude},${longitude}(${encodedLabel})`;
+          Linking.openURL(browserUrl);
+        }
+      });
+    } else {
+      // Apple Maps
+      const url = `http://maps.apple.com/?daddr=${latitude},${longitude}&q=${encodedLabel}`;
+      Linking.openURL(url);
+    }
+  } else if (Platform.OS === "android") {
+    const url = `geo:0,0?q=${latitude},${longitude}(${encodedLabel})`;
     Linking.openURL(url);
   }
 };
@@ -431,13 +450,31 @@ const Map = () => {
       {selectedTask && Platform.OS === "ios" && (
         <TouchableOpacity
           style={styles.fab}
-          onPress={() =>
-            openDirections(
-              selectedTask.milestone.latitudinal,
-              selectedTask.milestone.longitudinal,
-              selectedTask.milestone.name
-            )
-          }
+          onPress={() => {
+            ActionSheetIOS.showActionSheetWithOptions(
+              {
+                options: ["Cancel", "Apple Maps", "Google Maps"],
+                cancelButtonIndex: 0,
+              },
+              (buttonIndex) => {
+                if (buttonIndex === 1) {
+                  openDirections(
+                    selectedTask.milestone.latitudinal,
+                    selectedTask.milestone.longitudinal,
+                    selectedTask.milestone.name,
+                    "apple"
+                  );
+                } else if (buttonIndex === 2) {
+                  openDirections(
+                    selectedTask.milestone.latitudinal,
+                    selectedTask.milestone.longitudinal,
+                    selectedTask.milestone.name,
+                    "google"
+                  );
+                }
+              }
+            );
+          }}
           activeOpacity={0.85}
         >
           <View style={{ flexDirection: "row", alignItems: "center" }}>
