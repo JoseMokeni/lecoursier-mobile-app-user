@@ -200,7 +200,7 @@ const TaskDetails = () => {
                 }}
                 showsUserLocation={true}
                 showsMyLocationButton={true}
-                // provider={PROVIDER_GOOGLE}
+                provider={PROVIDER_GOOGLE}
               >
                 <Marker
                   coordinate={{ latitude, longitude }}
