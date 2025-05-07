@@ -7,6 +7,8 @@ import {
   ScrollView,
   ActivityIndicator,
   Alert,
+  Linking,
+  Platform,
 } from "react-native";
 import { useFocusEffect, useRouter } from "expo-router";
 import apiService from "@/services/apiService";
@@ -17,6 +19,7 @@ import { useAuth } from "@/context/AuthContext";
 import MapView, { Marker, Callout, Region } from "react-native-maps";
 import * as Location from "expo-location";
 import { PROVIDER_GOOGLE } from "react-native-maps";
+import { Ionicons } from "@expo/vector-icons";
 
 interface Task {
   id: number;
@@ -58,6 +61,22 @@ const getPriorityColor = (priority: string) => {
       return "#34C759";
     default:
       return "#888";
+  }
+};
+
+// Custom openDirections function using platform-specific map schemes
+const openDirections = (lat: string, lng: string, label: string) => {
+  const latitude = parseFloat(lat);
+  const longitude = parseFloat(lng);
+  const encodedLabel = encodeURIComponent(label);
+  const scheme = Platform.select({ ios: "maps:0,0?q=", android: "geo:0,0?q=" });
+  const latLng = `${latitude},${longitude}`;
+  const url = Platform.select({
+    ios: `${scheme}${encodedLabel}@${latLng}`,
+    android: `${scheme}${latLng}(${encodedLabel})`,
+  });
+  if (url) {
+    Linking.openURL(url);
   }
 };
 
@@ -348,6 +367,10 @@ const Map = () => {
         showsUserLocation={true}
         showsMyLocationButton={true}
         provider={PROVIDER_GOOGLE}
+        onPress={() => {
+          setSelectedTaskId(null);
+          setSelectedTask(null);
+        }}
       >
         {tasks
           .filter(
@@ -363,9 +386,71 @@ const Map = () => {
               title={task.name}
               description={task.milestone.name}
               pinColor={getMarkerColor(task.status)}
-            />
+              onPress={(e) => {
+                e.stopPropagation && e.stopPropagation(); // prevent map onPress
+                setSelectedTaskId(task.id);
+                setSelectedTask(task);
+              }}
+            >
+              {/* Remove Directions button from Callout */}
+
+              {Platform.OS === "ios" && (
+                <Callout tooltip={false}>
+                  <View style={styles.calloutContainer}>
+                    <Text style={styles.calloutTitle}>{task.name}</Text>
+                    <Text style={styles.calloutMilestone}>
+                      {task.milestone.name}
+                    </Text>
+                    <Text
+                      style={[
+                        styles.calloutPriority,
+                        {
+                          color: getPriorityColor(task.priority),
+                          fontWeight: "bold",
+                        },
+                      ]}
+                    >
+                      {task.priority}
+                    </Text>
+                    <Text
+                      style={[
+                        styles.calloutStatus,
+                        task.status === "pending"
+                          ? styles.statusPending
+                          : styles.statusInProgress,
+                      ]}
+                    >
+                      {task.status === "pending" ? "Pending" : "In Progress"}
+                    </Text>
+                  </View>
+                </Callout>
+              )}
+            </Marker>
           ))}
       </MapView>
+      {selectedTask && Platform.OS === "ios" && (
+        <TouchableOpacity
+          style={styles.fab}
+          onPress={() =>
+            openDirections(
+              selectedTask.milestone.latitudinal,
+              selectedTask.milestone.longitudinal,
+              selectedTask.milestone.name
+            )
+          }
+          activeOpacity={0.85}
+        >
+          <View style={{ flexDirection: "row", alignItems: "center" }}>
+            <Ionicons
+              name="navigate"
+              size={20}
+              color="#fff"
+              style={{ marginRight: 8 }}
+            />
+            <Text style={styles.fabText}>Directions</Text>
+          </View>
+        </TouchableOpacity>
+      )}
       {/* Superposed list of in-progress and pending tasks */}
       {showTaskList && visibleTasks.length > 0 && (
         <View style={styles.taskListOverlay}>
@@ -685,6 +770,26 @@ const styles = StyleSheet.create({
     right: 0,
     alignItems: "center",
     zIndex: 20,
+  },
+  fab: {
+    position: "absolute",
+    top: 10,
+    right: 24,
+    backgroundColor: "#007AFF",
+    borderRadius: 28,
+    paddingVertical: 14,
+    paddingHorizontal: 24,
+    elevation: 8,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.18,
+    shadowRadius: 4,
+    zIndex: 100,
+  },
+  fabText: {
+    color: "#fff",
+    fontWeight: "bold",
+    fontSize: 16,
   },
 });
 
