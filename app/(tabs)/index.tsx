@@ -16,6 +16,8 @@ import Echo from "laravel-echo";
 import Pusher from "pusher-js/react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import authService from "@/services/authService";
+import Toast from "react-native-toast-message";
+import { Audio } from "expo-av";
 
 interface Task {
   id: number;
@@ -76,6 +78,36 @@ const Tasks = () => {
     }
   };
 
+  const playNotificationSound = async (type: string) => {
+    try {
+      if (type === "created") {
+        const { sound } = await Audio.Sound.createAsync(
+          // This is the default system notification sound for Expo
+          require("@/assets/sounds/created.wav")
+        );
+        await sound.playAsync();
+        sound.setOnPlaybackStatusUpdate((status) => {
+          if (!status.isLoaded || status.didJustFinish) {
+            sound.unloadAsync();
+          }
+        });
+      } else if (type === "deleted") {
+        const { sound } = await Audio.Sound.createAsync(
+          // This is the default system notification sound for Expo
+          require("@/assets/sounds/deleted.wav")
+        );
+        await sound.playAsync();
+        sound.setOnPlaybackStatusUpdate((status) => {
+          if (!status.isLoaded || status.didJustFinish) {
+            sound.unloadAsync();
+          }
+        });
+      }
+    } catch (e) {
+      console.warn("Failed to play notification sound", e);
+    }
+  };
+
   useEffect(() => {
     fetchTasks();
 
@@ -107,12 +139,21 @@ const Tasks = () => {
       pusherRef.current = pusher;
 
       channel = pusher.subscribe(`tasks.${COMPANY_CODE}.${username}`);
-      channel.bind("App\\Events\\TaskCreated", function (data: any) {
+      channel.bind("App\\Events\\TaskCreated", async function (data: any) {
         // update the tasks list
         console.log("Task created event received:", data);
         if (!isMounted) return;
         const newTask = data.task;
         console.log("New task data:", newTask);
+        // Show toast and play sound
+        Toast.show({
+          type: "success",
+          text1: "New Task Received",
+          text2: newTask.name,
+          position: "top",
+          visibilityTime: 3000,
+        });
+        await playNotificationSound("created");
         setTasks((prevTasks) => {
           const updatedTasks = [...prevTasks, newTask];
           return updatedTasks.sort(
@@ -122,11 +163,20 @@ const Tasks = () => {
         });
       });
 
-      channel.bind("App\\Events\\TaskDeleted", function (data: any) {
+      channel.bind("App\\Events\\TaskDeleted", async function (data: any) {
         // update the tasks list
         console.log("Task deleted event received:", data);
         if (!isMounted) return;
         const deletedTaskId = data.taskId;
+        // Show toast and play sound
+        Toast.show({
+          type: "error",
+          text1: "Task Deleted",
+          text2: `Task #${deletedTaskId} was removed`,
+          position: "top",
+          visibilityTime: 3000,
+        });
+        await playNotificationSound("deleted");
         setTasks((prevTasks) =>
           prevTasks.filter((task) => task.id !== deletedTaskId)
         );
@@ -137,6 +187,14 @@ const Tasks = () => {
         console.log("Task updated event received:", data);
         if (!isMounted) return;
         const updatedTask = data.task;
+        // Show toast
+        // Toast.show({
+        //   type: "info",
+        //   text1: "Task Updated",
+        //   text2: updatedTask.name,
+        //   position: "top",
+        //   visibilityTime: 3000,
+        // });
         setTasks((prevTasks) =>
           prevTasks.map((task) =>
             task.id === updatedTask.id ? updatedTask : task
@@ -425,6 +483,7 @@ const Tasks = () => {
           onRefresh={fetchTasks}
         />
       )}
+      <Toast />
     </View>
   );
 };
