@@ -188,13 +188,13 @@ const Tasks = () => {
         if (!isMounted) return;
         const updatedTask = data.task;
         // Show toast
-        // Toast.show({
-        //   type: "info",
-        //   text1: "Task Updated",
-        //   text2: updatedTask.name,
-        //   position: "top",
-        //   visibilityTime: 3000,
-        // });
+        Toast.show({
+          type: "info",
+          text1: "Task Updated",
+          text2: updatedTask.name,
+          position: "top",
+          visibilityTime: 3000,
+        });
         setTasks((prevTasks) =>
           prevTasks.map((task) =>
             task.id === updatedTask.id ? updatedTask : task
