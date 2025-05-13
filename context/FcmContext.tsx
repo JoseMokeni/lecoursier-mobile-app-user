@@ -22,6 +22,18 @@ export const FcmProvider: React.FC<{ children: React.ReactNode }> = ({
 
       if (enabled) {
         console.log("Authorization status:", authStatus);
+        const fcmToken = await messaging().getToken();
+        if (fcmToken) {
+          console.log("FCM Token:", fcmToken);
+          const response = await apiService.put("/update-device-token", {
+            token: fcmToken,
+          });
+          console.log(response);
+        } else {
+          console.log("No FCM token received");
+        }
+      } else {
+        console.log("Notification permission denied");
       }
     };
 
