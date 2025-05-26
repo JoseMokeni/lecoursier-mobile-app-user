@@ -9,9 +9,11 @@ import {
   SafeAreaView,
   Dimensions,
   StatusBar,
+  ScrollView,
 } from "react-native";
 import { FontAwesome, Ionicons } from "@expo/vector-icons";
 import { useAuth } from "@/context/AuthContext";
+import { BadgesSection } from "@/components/BadgesSection";
 
 const ProfileScreen = () => {
   const { user, logout, isLoading } = useAuth();
@@ -44,38 +46,46 @@ const ProfileScreen = () => {
       </View>
     );
   }
-
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#F5F8FA" />
-
       <View style={styles.bgAccent} />
 
-      <View style={styles.profileCard}>
-        <View style={styles.avatarContainer}>
-          <View style={styles.avatarBorder}>
-            <View style={styles.avatar}>
-              <FontAwesome name="user" size={48} color="#4A90E2" />
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.profileCard}>
+          <View style={styles.avatarContainer}>
+            <View style={styles.avatarBorder}>
+              <View style={styles.avatar}>
+                <FontAwesome name="user" size={48} color="#4A90E2" />
+              </View>
             </View>
+            {user?.role && <Text style={styles.roleText}>{user.role}</Text>}
           </View>
-          {user?.role && <Text style={styles.roleText}>{user.role}</Text>}
+
+          <Text style={styles.userName}>{user?.name || "User"}</Text>
+          <Text style={styles.userDetails}>
+            @{user?.username || "username"}
+          </Text>
+          <Text style={styles.userDetails}>
+            {user?.email || "email@example.com"}
+          </Text>
+
+          <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+            <Ionicons name="log-out-outline" size={18} color="#4A90E2" />
+            <Text style={styles.logoutText}>Logout</Text>
+          </TouchableOpacity>
         </View>
 
-        <Text style={styles.userName}>{user?.name || "User"}</Text>
-        <Text style={styles.userDetails}>@{user?.username || "username"}</Text>
-        <Text style={styles.userDetails}>
-          {user?.email || "email@example.com"}
-        </Text>
+        <BadgesSection />
 
-        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-          <Ionicons name="log-out-outline" size={18} color="#4A90E2" />
-          <Text style={styles.logoutText}>Logout</Text>
-        </TouchableOpacity>
-      </View>
-
-      <View style={styles.footer}>
-        <Text style={styles.footerText}>Le Coursier App v1.0.0</Text>
-      </View>
+        <View style={styles.footer}>
+          <Text style={styles.footerText}>Le Coursier App v1.0.0</Text>
+        </View>
+      </ScrollView>
     </SafeAreaView>
   );
 };
@@ -86,8 +96,13 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#F5F8FA",
+  },
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
     alignItems: "center",
-    justifyContent: "center",
+    paddingBottom: 20,
   },
   bgAccent: {
     position: "absolute",
