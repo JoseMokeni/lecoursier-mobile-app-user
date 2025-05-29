@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   View,
   Text,
@@ -14,19 +14,88 @@ import { Ionicons } from "@expo/vector-icons";
 import { BadgeCard } from "./BadgeCard";
 import badgeService from "@/services/badgeService";
 import { EarnedBadge, BadgeWithProgress } from "@/types/badge";
+import { useBadgeContext } from "@/context/BadgeContext";
+import Toast from "react-native-toast-message";
 
 const { width, height } = Dimensions.get("window");
 
 export const BadgesSection: React.FC = () => {
+  const { onNewBadgeEarned } = useBadgeContext();
   const [earnedBadges, setEarnedBadges] = useState<EarnedBadge[]>([]);
   const [allBadges, setAllBadges] = useState<BadgeWithProgress[]>([]);
   const [loading, setLoading] = useState(true);
   const [showProgressModal, setShowProgressModal] = useState(false);
   const [progressLoading, setProgressLoading] = useState(false);
 
+  const handleNewBadgeEarned = useCallback(async (data: any) => {
+    console.log("BadgesSection: handleNewBadgeEarned called with:", data);
+    try {
+      const newBadge = data.badge;
+      const earnedAt = data.earned_at;
+
+      console.log("BadgesSection: Processing new badge:", newBadge.name);
+
+      // Create new earned badge object
+      const newEarnedBadge: EarnedBadge = {
+        badge: {
+          ...newBadge,
+          category_name: newBadge.category_name || "General",
+          rarity_name: newBadge.rarity_name || newBadge.rarity,
+          is_active: true,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          criteria: {},
+        },
+        earned_at: earnedAt,
+        progress: {
+          current: 1,
+          required: 1,
+          percentage: 100,
+        },
+      };
+
+      console.log("BadgesSection: Adding badge to earned list");
+      // Add to earned badges list
+      setEarnedBadges((prev) => {
+        console.log("BadgesSection: Previous earned badges:", prev.length);
+        const newList = [newEarnedBadge, ...prev];
+        console.log("BadgesSection: New earned badges list:", newList.length);
+        return newList;
+      });
+
+      // Update all badges list if it's loaded
+      setAllBadges((prev) =>
+        prev.map((badgeWithProgress) =>
+          badgeWithProgress.badge.id === newBadge.id
+            ? {
+                ...badgeWithProgress,
+                earned: true,
+                earned_at: earnedAt,
+                progress: {
+                  current: 1,
+                  required: 1,
+                  percentage: 100,
+                },
+              }
+            : badgeWithProgress
+        )
+      );
+
+      console.log("BadgesSection: Badge processing completed");
+    } catch (error) {
+      console.error("BadgesSection: Error handling new badge earned:", error);
+    }
+  }, []);
+
   useEffect(() => {
     fetchEarnedBadges();
-  }, []);
+
+    // Listen for badge earned events from the index component
+    console.log("BadgesSection: Setting up badge listener");
+    const cleanup = onNewBadgeEarned(handleNewBadgeEarned);
+
+    return cleanup;
+  }, [onNewBadgeEarned, handleNewBadgeEarned]);
 
   const fetchEarnedBadges = async () => {
     try {

@@ -10,6 +10,7 @@ import {
   TextInput,
 } from "react-native";
 import { useAuth } from "@/context/AuthContext";
+import { useBadgeContext } from "@/context/BadgeContext";
 import { Ionicons } from "@expo/vector-icons";
 import apiService from "@/services/apiService";
 import Echo from "laravel-echo";
@@ -45,6 +46,7 @@ interface Task {
 
 const Tasks = () => {
   const { user, logout } = useAuth();
+  const { emitBadgeEarned } = useBadgeContext();
   const router = useRouter();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
@@ -112,6 +114,7 @@ const Tasks = () => {
     fetchTasks();
 
     let channel: any = null;
+    let badgeChannel: any = null;
     let isMounted = true;
 
     const setupPusher = async () => {
@@ -200,6 +203,39 @@ const Tasks = () => {
             task.id === updatedTask.id ? updatedTask : task
           )
         );
+      });
+
+      // badge earned event
+      badgeChannel = pusher.subscribe(`badges.${COMPANY_CODE}.${username}`);
+      badgeChannel.bind("badge.earned", function (data: any) {
+        console.log("Badge earned event received:", data);
+        if (!isMounted) {
+          console.log("Component not mounted, skipping badge event");
+          return;
+        }
+        const badge = data.badge;
+        console.log("Showing toast for badge:", badge.name);
+
+        // Hide any existing toasts first to prevent conflicts
+        Toast.hide();
+
+        // Show toast with a small delay to ensure it displays
+        setTimeout(() => {
+          Toast.show({
+            type: "success",
+            text1: "🎉 Badge Earned!",
+            text2: `${badge.icon} ${badge.name}`,
+            position: "top",
+            visibilityTime: 4000,
+          });
+          console.log("Toast shown for badge:", badge.name);
+        }, 50);
+
+        // Emit badge event for other components to listen
+        setTimeout(() => {
+          console.log("Emitting badge event:", badge.name);
+          emitBadgeEarned(data);
+        }, 150);
       });
     };
 
@@ -483,7 +519,6 @@ const Tasks = () => {
           onRefresh={fetchTasks}
         />
       )}
-      <Toast />
     </View>
   );
 };
