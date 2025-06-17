@@ -10,12 +10,15 @@ import {
   TextInput,
 } from "react-native";
 import { useAuth } from "@/context/AuthContext";
+import { useBadgeContext } from "@/context/BadgeContext";
 import { Ionicons } from "@expo/vector-icons";
 import apiService from "@/services/apiService";
 import Echo from "laravel-echo";
 import Pusher from "pusher-js/react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import authService from "@/services/authService";
+import Toast from "react-native-toast-message";
+import { Audio } from "expo-av";
 
 interface Task {
   id: number;
@@ -43,6 +46,7 @@ interface Task {
 
 const Tasks = () => {
   const { user, logout } = useAuth();
+  const { emitBadgeEarned } = useBadgeContext();
   const router = useRouter();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
@@ -76,43 +80,86 @@ const Tasks = () => {
     }
   };
 
+  const playNotificationSound = async (type: string) => {
+    try {
+      if (type === "created") {
+        const { sound } = await Audio.Sound.createAsync(
+          // This is the default system notification sound for Expo
+          require("@/assets/sounds/created.wav")
+        );
+        await sound.playAsync();
+        sound.setOnPlaybackStatusUpdate((status) => {
+          if (!status.isLoaded || status.didJustFinish) {
+            sound.unloadAsync();
+          }
+        });
+      } else if (type === "deleted") {
+        const { sound } = await Audio.Sound.createAsync(
+          // This is the default system notification sound for Expo
+          require("@/assets/sounds/deleted.wav")
+        );
+        await sound.playAsync();
+        sound.setOnPlaybackStatusUpdate((status) => {
+          if (!status.isLoaded || status.didJustFinish) {
+            sound.unloadAsync();
+          }
+        });
+      }
+    } catch (e) {
+      console.warn("Failed to play notification sound", e);
+    }
+  };
+
   useEffect(() => {
     fetchTasks();
 
     let channel: any = null;
+    let badgeChannel: any = null;
     let isMounted = true;
 
     const setupPusher = async () => {
       const COMPANY_CODE = await authService.getCompanyCode();
       const username = user?.username || "";
-      // log all the env vars used bellow with types
+
       console.log("Pusher App Key:", process.env.EXPO_PUBLIC_PUSHER_APP_KEY);
       console.log("Pusher Host:", process.env.EXPO_PUBLIC_PUSHER_HOST);
       console.log("Pusher Port:", process.env.EXPO_PUBLIC_PUSHER_PORT);
       console.log("Pusher Cluster:", process.env.EXPO_PUBLIC_PUSHER_CLUSTER);
       console.log("Company Code:", COMPANY_CODE);
       console.log("Username:", username);
+
       const pusher = new Pusher(
         process.env.EXPO_PUBLIC_PUSHER_APP_KEY || "lecoursier",
         {
-          wsHost: process.env.EXPO_PUBLIC_PUSHER_HOST || "10.0.2.2",
+          // Use the dedicated WebSocket subdomain
+          wsHost: process.env.EXPO_PUBLIC_PUSHER_HOST || "10.0.0.2",
           wsPort: parseInt(process.env.EXPO_PUBLIC_PUSHER_PORT || "6001", 10),
-          wssPort: parseInt(process.env.EXPO_PUBLIC_PUSHER_PORT || "6001", 10),
-          forceTLS: false,
+          wssPort: 443,
+          forceTLS:
+            process.env.EXPO_PUBLIC_PUSHER_FORCE_TLS === "true" || false,
           disableStats: true,
-          enabledTransports: ["ws"],
+          enabledTransports: ["ws", "wss"],
           cluster: process.env.EXPO_PUBLIC_PUSHER_CLUSTER || "mt1",
         }
       );
       pusherRef.current = pusher;
 
       channel = pusher.subscribe(`tasks.${COMPANY_CODE}.${username}`);
-      channel.bind("App\\Events\\TaskCreated", function (data: any) {
+      channel.bind("App\\Events\\TaskCreated", async function (data: any) {
         // update the tasks list
         console.log("Task created event received:", data);
         if (!isMounted) return;
         const newTask = data.task;
         console.log("New task data:", newTask);
+        // Show toast and play sound
+        Toast.show({
+          type: "success",
+          text1: "New Task Received",
+          text2: newTask.name,
+          position: "top",
+          visibilityTime: 3000,
+        });
+        await playNotificationSound("created");
         setTasks((prevTasks) => {
           const updatedTasks = [...prevTasks, newTask];
           return updatedTasks.sort(
@@ -122,11 +169,20 @@ const Tasks = () => {
         });
       });
 
-      channel.bind("App\\Events\\TaskDeleted", function (data: any) {
+      channel.bind("App\\Events\\TaskDeleted", async function (data: any) {
         // update the tasks list
         console.log("Task deleted event received:", data);
         if (!isMounted) return;
         const deletedTaskId = data.taskId;
+        // Show toast and play sound
+        Toast.show({
+          type: "error",
+          text1: "Task Deleted",
+          text2: `Task #${deletedTaskId} was removed`,
+          position: "top",
+          visibilityTime: 3000,
+        });
+        await playNotificationSound("deleted");
         setTasks((prevTasks) =>
           prevTasks.filter((task) => task.id !== deletedTaskId)
         );
@@ -137,11 +193,52 @@ const Tasks = () => {
         console.log("Task updated event received:", data);
         if (!isMounted) return;
         const updatedTask = data.task;
+        // Show toast
+        Toast.show({
+          type: "info",
+          text1: "Task Updated",
+          text2: updatedTask.name,
+          position: "top",
+          visibilityTime: 3000,
+        });
         setTasks((prevTasks) =>
           prevTasks.map((task) =>
             task.id === updatedTask.id ? updatedTask : task
           )
         );
+      });
+
+      // badge earned event
+      badgeChannel = pusher.subscribe(`badges.${COMPANY_CODE}.${username}`);
+      badgeChannel.bind("badge.earned", function (data: any) {
+        console.log("Badge earned event received:", data);
+        if (!isMounted) {
+          console.log("Component not mounted, skipping badge event");
+          return;
+        }
+        const badge = data.badge;
+        console.log("Showing toast for badge:", badge.name);
+
+        // Hide any existing toasts first to prevent conflicts
+        Toast.hide();
+
+        // Show toast with a small delay to ensure it displays
+        setTimeout(() => {
+          Toast.show({
+            type: "success",
+            text1: "🎉 Badge Earned!",
+            text2: `${badge.icon} ${badge.name}`,
+            position: "top",
+            visibilityTime: 4000,
+          });
+          console.log("Toast shown for badge:", badge.name);
+        }, 50);
+
+        // Emit badge event for other components to listen
+        setTimeout(() => {
+          console.log("Emitting badge event:", badge.name);
+          emitBadgeEarned(data);
+        }, 150);
       });
     };
 

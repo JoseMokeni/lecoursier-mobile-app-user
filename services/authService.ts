@@ -1,4 +1,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import messaging from "@react-native-firebase/messaging";
+import { Platform, PermissionsAndroid } from "react-native";
+import apiService from "@/services/apiService";
 
 interface User {
   username: string;
@@ -15,6 +18,75 @@ interface AuthResponse {
 const AUTH_TOKEN_KEY = "auth_token";
 const USER_DATA_KEY = "user_data";
 const COMPANY_CODE_KEY = "company_code";
+
+const requestNotificationPermissionIos = async () => {
+  const authStatus = await messaging().requestPermission();
+  const enabled =
+    authStatus === messaging.AuthorizationStatus.AUTHORIZED ||
+    authStatus === messaging.AuthorizationStatus.PROVISIONAL;
+
+  if (enabled) {
+    console.log("Authorization status:", authStatus);
+    const fcmToken = await messaging().getToken();
+    if (fcmToken) {
+      console.log("FCM Token:", fcmToken);
+      const response = await apiService.put("/update-device-token", {
+        token: fcmToken,
+      });
+      console.log(response);
+    } else {
+      console.log("No FCM token received");
+    }
+  } else {
+    console.log("Notification permission denied");
+  }
+};
+
+const requestNotificationPermissionAndroid = async () => {
+  try {
+    if (Platform.Version >= 33) {
+      const granted = await PermissionsAndroid.request(
+        PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS
+      );
+      if (granted === PermissionsAndroid.RESULTS.GRANTED) {
+        console.log("Notification permission granted");
+        const fcmToken = await messaging().getToken();
+        if (fcmToken) {
+          console.log("FCM Token:", fcmToken);
+          const response = await apiService.put("/update-device-token", {
+            token: fcmToken,
+          });
+          console.log(response);
+        } else {
+          console.log("No FCM token received");
+        }
+      } else {
+        console.log("Notification permission denied");
+      }
+    } else if (Platform.Version >= 26) {
+      const authStatus = await messaging().requestPermission();
+      const enabled =
+        authStatus === messaging.AuthorizationStatus.AUTHORIZED ||
+        authStatus === messaging.AuthorizationStatus.PROVISIONAL;
+
+      if (enabled) {
+        console.log("Authorization status:", authStatus);
+        const fcmToken = await messaging().getToken();
+        if (fcmToken) {
+          console.log("FCM Token:", fcmToken);
+          const response = await apiService.put("/update-device-token", {
+            token: fcmToken,
+          });
+          console.log(response);
+        } else {
+          console.log("No FCM token received");
+        }
+      }
+    }
+  } catch (err) {
+    console.warn(err);
+  }
+};
 
 const authService = {
   // Login function
@@ -61,6 +133,14 @@ const authService = {
         await AsyncStorage.setItem(AUTH_TOKEN_KEY, data.token);
         await AsyncStorage.setItem(USER_DATA_KEY, JSON.stringify(data.user));
         await AsyncStorage.setItem(COMPANY_CODE_KEY, companyCode);
+      }
+
+      // request notification permissions and send FCM token
+      if (Platform.OS === "ios") {
+        requestNotificationPermissionIos();
+      }
+      if (Platform.OS === "android") {
+        requestNotificationPermissionAndroid();
       }
 
       return data;

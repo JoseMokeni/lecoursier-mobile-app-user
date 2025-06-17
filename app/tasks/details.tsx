@@ -15,6 +15,7 @@ import { Ionicons } from "@expo/vector-icons";
 import * as Location from "expo-location";
 import apiService from "../../services/apiService";
 import MapView, { Marker, PROVIDER_GOOGLE } from "react-native-maps";
+import Toast from "react-native-toast-message";
 
 const TaskDetails = () => {
   const router = useRouter();
@@ -60,8 +61,12 @@ const TaskDetails = () => {
     try {
       setIsLoading(true);
       await apiService.post(`/tasks/${id}/start`);
-      Alert.alert("Success", "Task started");
-      router.back();
+      Alert.alert("Success", "Task started", [
+        {
+          text: "OK",
+          onPress: () => router.back(),
+        },
+      ]);
     } catch (error: any) {
       console.error("Error starting task:", error);
       Alert.alert("Error", error.message || "Failed to start task");
@@ -74,8 +79,12 @@ const TaskDetails = () => {
     try {
       setIsLoading(true);
       await apiService.post(`/tasks/${id}/complete`);
-      Alert.alert("Success", "Task completed");
-      router.back();
+      Alert.alert("Success", "Task completed", [
+        {
+          text: "OK",
+          onPress: () => router.back(),
+        },
+      ]);
     } catch (error: any) {
       console.error("Error completing task:", error);
       Alert.alert("Error", error.message || "Failed to complete task");

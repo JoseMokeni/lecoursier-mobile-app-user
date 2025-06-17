@@ -7,13 +7,17 @@
     "icon": "./assets/images/icon.png",
     "scheme": "myapp",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
+    "newArchEnabled": false,
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.anonymous.lecoursiermobileappuser",
       "config": {
         "googleMapsApiKey": ""
-      }
+      },
+      "googleServicesFile": "./GoogleService-Info.plist"
+      // "entitlements": {
+      //   "aps-environment": "production"
+      // }
     },
     "android": {
       "adaptiveIcon": {
@@ -25,7 +29,8 @@
         "googleMaps": {
           "apiKey": ""
         }
-      }
+      },
+      "googleServicesFile": "./google-services.json"
     },
     "web": {
       "bundler": "metro",
@@ -34,6 +39,8 @@
     },
     "plugins": [
       "expo-router",
+      "@react-native-firebase/app",
+      "@react-native-firebase/messaging",
       [
         "expo-splash-screen",
         {

@@ -37,6 +37,7 @@ const apiService = {
         "Content-Type": "application/json",
         Authorization: `Bearer ${token}`,
         "x-tenant-id": companyCode,
+        Accept: "application/json",
       };
 
       const response = await fetch(url, {

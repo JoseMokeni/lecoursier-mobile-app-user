@@ -21,6 +21,7 @@ import MapView, { Marker, Callout, Region } from "react-native-maps";
 import * as Location from "expo-location";
 import { PROVIDER_GOOGLE } from "react-native-maps";
 import { Ionicons } from "@expo/vector-icons";
+import Toast from "react-native-toast-message";
 
 interface Task {
   id: number;
@@ -154,22 +155,25 @@ const Map = () => {
     const setupPusher = async () => {
       const COMPANY_CODE = await authService.getCompanyCode();
       const username = user?.username || "";
-      // log all the env vars used bellow with types
+
       console.log("Pusher App Key:", process.env.EXPO_PUBLIC_PUSHER_APP_KEY);
       console.log("Pusher Host:", process.env.EXPO_PUBLIC_PUSHER_HOST);
       console.log("Pusher Port:", process.env.EXPO_PUBLIC_PUSHER_PORT);
       console.log("Pusher Cluster:", process.env.EXPO_PUBLIC_PUSHER_CLUSTER);
       console.log("Company Code:", COMPANY_CODE);
       console.log("Username:", username);
+
       const pusher = new Pusher(
         process.env.EXPO_PUBLIC_PUSHER_APP_KEY || "lecoursier",
         {
-          wsHost: process.env.EXPO_PUBLIC_PUSHER_HOST || "10.0.2.2",
+          // Use the dedicated WebSocket subdomain
+          wsHost: process.env.EXPO_PUBLIC_PUSHER_HOST || "10.0.0.2",
           wsPort: parseInt(process.env.EXPO_PUBLIC_PUSHER_PORT || "6001", 10),
-          wssPort: parseInt(process.env.EXPO_PUBLIC_PUSHER_PORT || "6001", 10),
-          forceTLS: false,
+          wssPort: 443,
+          forceTLS:
+            process.env.EXPO_PUBLIC_PUSHER_FORCE_TLS === "true" || false,
           disableStats: true,
-          enabledTransports: ["ws"],
+          enabledTransports: ["ws", "wss"],
           cluster: process.env.EXPO_PUBLIC_PUSHER_CLUSTER || "mt1",
         }
       );
